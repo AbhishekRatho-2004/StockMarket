@@ -1,0 +1,16 @@
+deta==1.2.0
+matplotlib==3.7.2
+numpy==1.24.3
+openai==0.27.8
+pandas==2.0.3
+pandas_ta==0.3.14b0
+Pillow==9.5.0
+Pillow==10.0.0
+plotly==5.15.0
+Requests==2.31.0
+streamlit==1.25.0
+streamlit_authenticator==0.2.2
+streamlit_lottie==0.0.5
+streamlit_option_menu==0.3.6
+yfinance==0.2.27
+~treamlit==1.25.0
