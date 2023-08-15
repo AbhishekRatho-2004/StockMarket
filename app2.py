@@ -18,8 +18,311 @@ import pandas_ta as ta
 from PIL import Image
 import requests
 from io import BytesIO
+import yahooquery as yq
+import streamlit.components.v1 as components
+html_code = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz App</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background-color:black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+}
+.quiz-container {
+    background-color:black;
+    color:white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    width: 500px;
+}
+h1 {
+    margin-top:0px;
+     
+}
+.question-text {
+    color:white;
+    font-size: 23px;
+font-weight:bold;
+    margin-bottom: 15px;
+}
+.option {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+font-size:18px;
+    background-color:white;
+    color:black;
+    border: 2px solid lightblue;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.option:hover {
+    background-color: #d0d0d0;
+}
+.option.selected {
+    background-color: #007bff;
+    color: white;
+}
+.submit-button {
+    margin-top: 15px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+font-size:17px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+.result-container {
+    display: none;
+    margin-top: 20px;
+}
+.result-container h2 {
+    font-size: 24px;
+    margin-bottom: 10px;
+}
+.result-container p {
+    font-size: 23px;
+    margin: 0;
+}
+</style>
+</head>
+<body>
+    <div class="quiz-container">
+        <h1>Quiz on Stock Market</h1>
+        <div class="question-container">
+            <p class="question-text"></p>
+        </div>
+        <div class="options-container">
+            <button class="option"></button>
+            <button class="option"></button>
+            <button class="option"></button>
+            <button class="option"></button>
+        </div>
+        <button class="submit-button">Submit</button>
+        <div class="result-container">
+            <h2>Quiz Results</h2>
+            <p>You scored <span class="score" style="font-weight:bold;color:red">0</span> out of <span class="total-questions" style="font-weight:bold">0</span> questions.</p>
+        </div>
+    </div>
+   
+    <script>
+    const questionText = document.querySelector(".question-text");
+const options = document.querySelectorAll(".option");
+const submitButton = document.querySelector(".submit-button");
+const scoreElement = document.querySelector(".score");
+const totalQuestionsElement = document.querySelector(".total-questions");
+const resultContainer = document.querySelector(".result-container");
+const quizData = [
+    {
+        question: "1. What are the indices NIFTY and SENSEX are dependent on?",
+        options: ["Capital that has been paid in full.", "The market capitalisation of a company", "Capitalisation based on free float", "Share capital that has been authorised."],
+        correctAnswer: "Capitalisation based on free float",
+    }, 
+  {
+        question: "2. What is the Stock Exchange Sensitive Index’s (Sensex) total number of companies?",
+        options: ["50", "60", "30", "40"],
+        correctAnswer: "30",
+    },
+  {
+        question: "3. The feature of shares in primary markets that makes it very easy to sell recently issued securities is known as",
+        options: ["The flow of money", "Reduction in liquidity", "Large fund", "Liquidity increase"],
+        correctAnswer: "Liquidity increase",
+    },
+  {
+        question: "4. Where is the National Stock Exchange headquartered?",
+        options: ["Delhi", "Kolkata", "Bombay", "Chennai"],
+        correctAnswer: "Bombay",
+    },
+  {
+        question: "5. When was the National Stock Exchange Fifty (NIFTY) founded?",
+        options: ["1991", "1993", "1996", "1995"],
+        correctAnswer: "1996",
+    },
+  {
+        question: "6. What is the purpose of a stock index?",
+        options: ["To regulate stock trading", "To predict future stock prices", "To measure the overall performance of a group of stocks", "To set dividend payouts for companies"],
+        correctAnswer: "To measure the overall performance of a group of stocks",
+    },
+      {
+        question: "7. Which of the following is a key measure of a company's profitability?",
+        options: ["Dividend Yield", "Market Capitalization", "Earnings Per Share (EPS)", " Price-to-Earnings Ratio (P/E Ratio)"],
+        correctAnswer: "Earnings Per Share (EPS)",
+    },
+      {
+        question: "8. _____ is not the concern of the Securities and Exchange Board of India (SEBI).",
+        options: ["Ensure that businesses operate in an ethical manner", "Raising the earnings of the company’s shareholders", "Brokers promoting efficient services", "Investor protection is crucial."],
+        correctAnswer: "Raising the earnings of the company’s shareholders",
+    },
+      {
+        question: "9. The first computerised stock exchange in India was",
+        options: ["Multi Commodity Exchange (MCX)", "Bombay Stock Exchange (BSE)", "Over-the-Counter Exchange of India (OCTEI)", "National Stock Exchange (NSE)"],
+        correctAnswer: "",
+    },  
+     {
+        question: "10. Which of the following investment options is generally considered to be the riskiest?",
+        options: ["Government Bonds", "Penny Stocks", "Index Funds", " Blue-chip Stocks"],
+        correctAnswer: "Penny Stocks",
+    },
+];
+let currentQuestionIndex = 0;
+let score = 0;
+function showQuestion() {
+    const currentQuestion = quizData[currentQuestionIndex];
+    questionText.textContent = currentQuestion.question;
+    options.forEach((option, index) => {
+        option.textContent = currentQuestion.options[index];
+        option.classList.remove("selected");
+        option.addEventListener("click", selectAnswer);
+    });
+}
+function selectAnswer(event) {
+    options.forEach(option => {
+        option.classList.remove("selected");
+    });
+    const selectedOption = event.target;
+    selectedOption.classList.add("selected");
+}
 
+function checkAnswer() {
+    const selectedOption = document.querySelector(".selected");
+    if (selectedOption && selectedOption.textContent === quizData[currentQuestionIndex].correctAnswer) {
+        score++;
+    }
+    currentQuestionIndex++;
+   
+    if (currentQuestionIndex < quizData.length) {
+        showQuestion();
+    } else {
+        showResults();
+    }
+}
+function showResults() {
+    questionText.textContent = "Quiz Over!";
+    options.forEach(option => {
+        option.removeEventListener("click", selectAnswer);
+    });
+    submitButton.style.display = "none";
+    scoreElement.textContent = score;
+    totalQuestionsElement.textContent = quizData.length;
+    resultContainer.style.display = "block";
+}
+submitButton.addEventListener("click", checkAnswer);
+// Start the quiz
+showQuestion();
+    </script>
+</body>
+</html>
+"""
+d={
+    'hi':'hello, Buddy',
+    'how are you':'I am fine',
+    'What are you doing':'Thinking about you buddy ',
+    'are you all right':'ya iam performing well',
+    'What are the advantages of Derivatives':'Enhance price discovery process and volume of transcations',
+    'difference between nse and bse':'BSE consists of 30 scrips whereas NSE consists of 50 scrips,BSE is screen based trading whereas NSE is ringless, national, computerized exchange.',
+    'On what basis securities should be selected':'Yield to maturity,1)Risk to default,2)Tax shield and Liquidity.',
+    'what does the website provides':'website provides the information regarding stock market that help investors to make informed decisions',
+    'how is the website different from other websities': 'the additional features that are been added are 1) chatbot: that gives you the clear understanding of an website 2) all the information regarding stock market are embedded inorder to provide efficiency of usage 3)  login crediantals to provide security to the data that are been accesessed by the user etc.',
+    'what is your name':'i am an ai',
+    'market open time':'The regular trading days open at  9.30 a.m. Eastern time',
+    'market close time':'the regular trading days closes at 4 p.m. Eastern time.',
+    'what is a put in stocks':'A put in stocks is an options contract that represents the right to sell a particular stock at a set price within a certain time frame.',
+    'how many stocks should i buy in my portfolio':"investors can have 8-10 stocks in the portfolio depending on the amount of investment",
+    'how much returns can i expect from the market':'In the bull market, the portfolio will give attractive returns (the benchmark index Nifty gave a return of ~67% from April 01,2020 till December 18,2020.',
+    'is investing in IPO is a better option':'few IPOs have given amazing returns to their shareholders in the past for long consistent years. If you are able to find such IPOs which are very promising,then feel free to invest in them.',
+    'stock':'ownership of an company',
+    'What are stock exchanges':'a market in which securities are bought and sold,the company was floated on the stock exchange',
+    'What is a stock index':'A stock index is a measurement of the value of a specific group of stocks.',
+    'How do stock prices change':'Stock prices change due to various factors such as company performance, market trends, economic indicators, news, and investor sentiment.',
+    'What is a dividend':'A dividend is a payment made by a company to its shareholders from its profits.',
+    'how can one can identify the best stocks':'A Strong Leadership Team.A Promising Growth In+++dustry.Commanding Market Share.Strong Sales Growth.A Large Target Market.',
+    'what is stock market':"The stock market refers to a marketplace where people buy and sell shares of publicly traded companies.",
+    'is this website secure':'yes, it is secure as we are using streamlit to build application',
+    'are there any courses provided by this website':'yes u can refer to course webpage for better learning',
+    'how many sectors are there to invest in Stock market':'You can invest in 11 different sectors in the stock market.',
+    'is there any time for buying shares or doing a trade':'Yes, you can only trade between 09:15 am to 3:30 pm on weekdays. But you can place AMO type of orders after these trading hours.',
+    'is it safe to invest in Unlisted Stocks as a beginner':'if your firm about the future growth of the company only then you can think of investing in unlisted stocks.',
+    'how to find undervalued stocks':'Undervalued stocks are stocks that are priced lower than their fair price.',
+    'how much time should i spend while researching stocks':'You need to research the company fundamentals, analyze financial statements, competitor analysis, etc.',
+    'how to invest for an IPO online':'login to your trading account and select the required ipo on the trading, portal input the number of shares you want to buy and the price of the shares.',
+    'should I invest in stocks when the market is at high':'try to avoid investing in stocks whrn market is high',
+    'Should I use a stop loss on my investments':' If you are an active trader, you can use stop loss to control a lot of damage.',
+    'can I become a millionaire by investing in stocks':'If you wish to earn from the stock market you have to put a lot of time and effort into researching companies.',
+    'nse':'national stock exchange',
+    'bse': 'bombay stock exchange',
+    'sebi':'security exchange board of india',
+    'what are the brokerages available to invest in stock market':'zerodha,upstock,groww,paytm money etc.',
+    'what is demat account':'A Demat Account is an account that holds all your securities and shares in electronic form Just like the bank holds your money.',
+    'how to open demat account':'1. Fill the basic details in online Demat Account opening form with samco securities. 2. Upload the necessary documents for opening a Demat Account. 3. Digitally sign your application and submit the form.',
+    'how many demat account one can have':'You can open multiple demat accounts with a valid Pan.',
+    'Where to open demat account':'select a brokerage site, compile documents,fill opening form and fund your trading account',
+    'is demat account safe':'Demat Accounts are safe as its regulated by SEBI (Securities and Exchange Board of India).',
+    'can nri open dermat account':'Yes NRI s can open demat account to trade in indian stock market.',
+    'who created the website':'team techgaints',
+    'describe predict tab':'it gives the future predictions of the stock of an company',
+    'describe home tab':'it tells about the general details of the stock',
+    'what does the dashboard tells':'it gives the overall statistics of an specified company in an specified range',
+    'what type of information does course provide':'this consists of videos that desccribes detail information about stock market from scratch to advance',
+    'is long term investment better than trading':'it is better to trade whenever you are perfect in stock analysis like technical analysis of an particular stock whereas long term investment is better when the profit of an company rises in future. For more info refer to the course tab for better learning , good luck!'
+}
+def footer():
+    st.markdown('---')
+    f1,f2,f3,f4=st.columns(4)
+    with f1:
+        st.subheader(':red[Company]')
+        st.text('About Us')
+        st.text('Services')
+        st.text('Privacy Policy')
+        st.text('T&c')
+    with f2:
+        st.subheader(':red[Get Help]')
+        st.text('FAQ')
+        st.text('Return')
+        st.text('Stocks')
+        st.text('Companies')
+    with f3:
+        st.subheader(':red[Online Trading]')
+        st.text('Algorithmic Trading')
+        st.text('Upstox Trading')
+        st.text('Relaince')
+        st.text('TATA')
+    with f4:
+        st.subheader(':red[Connect Us]')
+        st.text('Email')
+        st.text('FaceBook')
+        st.text('LinkedIn')
+        st.text('Twitter')
+def get_symbol(query, preferred_exchange='ams'):
+    try:
+        data = yq.search(query)
+    except ValueError:
+        print(query)
+    else:
+        quotes = data['quotes']
+        if len(quotes) == 0:
+            return 'No Symbol Found'
 
+        symbol = quotes[0]['symbol']
+        for quote in quotes:
+            if quote['exchange'] == preferred_exchange:
+                symbol = quote['symbol']
+                break
+        return symbol
+l=list(d.keys())
 th_props = [
   ('font-size', '25px'),
   ('text-align', 'center'),
@@ -188,6 +491,7 @@ try:
                             </body>    
                     </html>
                     """,unsafe_allow_html=True)
+                    footer()
                 if selected=='Company':
                     st.markdown("""
                     <html>
@@ -206,7 +510,8 @@ try:
                     """,unsafe_allow_html=True)
                     sea=st.text_input('',placeholder='Enter a company')
                     st.title(f'Details of the {sea}')
-                    sym=yf.Ticker(sea)
+                    tickerCompany = get_symbol(sea)
+                    sym=yf.Ticker(tickerCompany)
                     information=pd.Series(sym.info)
                     details=pd.DataFrame(information)
                     x=details.iloc[11,0]
@@ -255,10 +560,11 @@ try:
                                 st.error("Error loading the image. Please check the URL and try again.")                
                             st.write(sym.news[i]['link'])
                             i=i+1
+                    footer()
                 if selected=='Stocks':
                     search=st.text_input('',placeholder='Search for a company')
-                    
-                    company = yf.download(search, period='1d',interval='1m')
+                    tickerstock = get_symbol(search)
+                    company = yf.download(tickerstock, period='1d',interval='1m')
                     
                     t1,t2,t3,t4=st.tabs(['General','Moving Average','Price Change','Intraday Range'])
                     with t1:
@@ -349,9 +655,10 @@ try:
                         with gdwn:
                             st.metric('Avg',company['Intraday_Range'].mean().round(2))
                             st.table(company[['Open', 'Close','Intraday_Range','GapDown']].head(10).style.set_table_styles(styles))
-
+                    footer()
                 if selected=='Predict':
                     st.header('This is Predict')
+                    footer()
                 if selected=='Dashboard':
                     lottie_coding=load_lottiefile("animation_ll4zaxpf.json")
                     lottie_anni=load_lottiefile("animation_ll4z00j3.json")
@@ -373,7 +680,8 @@ try:
                         st.markdown("<br> </br>",unsafe_allow_html=True)
                         symbol=st.text_input('',placeholder='Search for a Company')
                         start=st.date_input("Start")
-                        end=st.date_input("End") 
+                        end=st.date_input("End")
+                        tickerdash = get_symbol(symbol)
                     with c:
                         st_lottie(
                                 lottie2,
@@ -381,7 +689,7 @@ try:
                                 height=None,
                                 width=None
                             )
-                    data=stock_data(symbol,start,end)
+                    data=stock_data(tickerdash,start,end)
                     stoc= data.iloc[::-1]
                     stock=stoc[['Open','Close','High','Low','Volume']]
                     st.markdown("<h1 style='color:green;'><center>Stock values</center></h1>",unsafe_allow_html=True)
@@ -426,15 +734,16 @@ try:
                     plt.figure(figsize=(12,6))
                     fig=px.line(stock)
                     st.plotly_chart(fig)
-                
+                    footer()
                 if selected=='Indicators':
                     st.subheader(':blue[Technical Indicators Analysis]')
                     st.markdown('<h3>Technical Indicator</h3>',unsafe_allow_html=True)
                     st.markdown('<p>A technical indicator is a mathematical calculation or pattern derived from price, volume, or open interest of a security (such as stocks, currencies, commodities, etc.) in financial markets. These indicators are used by traders and analysts to gain insights into the markets trend, momentum, volatility, and potential reversal points. Technical indicators are applied to charts to help traders make more informed decisions about when to buy, sell, or hold a particular security.</p>',unsafe_allow_html=True)
-                    symbol=st.text_input('')
+                    stockindic=st.text_input('')
+                    tickerIndicator = get_symbol(stockindic)
                     per=st.selectbox('Period',options=['1d','2d','1w','1mo','3mo','6mo','1y'])
                     inter=st.selectbox('Interval',options=['1d','5d','1wk'])
-                    tech=yf.download(symbol,period=per,interval=inter)
+                    tech=yf.download(tickerIndicator,period=per,interval=inter)
 
                     df=pd.DataFrame()
                     ind_list=df.ta.indicators(as_list=True)
@@ -455,42 +764,41 @@ try:
                     fig_ind_new=px.line(indicator)
                     st.plotly_chart(fig_ind_new)
                     st.table(indicator.head(10).style.set_table_styles(styles))
+                    footer()
+                if selected=='Course':
+                    cour,quiz=st.tabs(['Courses','Quiz'])
+                    with quiz:
+                        st.title('Quiz App')
+                        d1,d2,d3=st.columns(3)
+
+                        with d2:
+                            components.html(html_code,height=500,width=500)
+                    footer()
                 if selected=='Bot':
-                    st.title("ChatGPT-like clone")
-
-                    openai.api_key = st.secrets['OPENAI_API_KEY']
-
-                    if "openai_model" not in st.session_state:
-                        st.session_state["openai_model"] = "gpt-3.5-turbo"
-
                     if "messages" not in st.session_state:
                         st.session_state.messages = []
-
                     for message in st.session_state.messages:
                         with st.chat_message(message["role"]):
                             st.markdown(message["content"])
-
                     if prompt := st.chat_input("What is up?"):
                         st.session_state.messages.append({"role": "user", "content": prompt})
                         with st.chat_message("user"):
                             st.markdown(prompt)
-
                         with st.chat_message("assistant"):
                             message_placeholder = st.empty()
                             full_response = ""
-                            for response in openai.ChatCompletion.create(
-                                model=st.session_state["openai_model"],
-                                messages=[
-                                    {"role": m["role"], "content": m["content"]}
-                                    for m in st.session_state.messages
-                                ],
-                                stream=True,
-                            ):
-                                full_response += response.choices[0].delta.get("content", "")
+                            assistant_response = ''
+                            prompt=prompt.lower()
+                            if prompt in l:
+                                assistant_response=d[prompt]
+                            else:
+                                assistant_response="Sorry,I didn't get you."
+                            for chunk in assistant_response.split():
+                                full_response += chunk + " "
+                                time.sleep(0.05)
                                 message_placeholder.markdown(full_response + "▌")
                             message_placeholder.markdown(full_response)
                         st.session_state.messages.append({"role": "assistant", "content": full_response})
-
             elif not authentication_status:
                 with info:
                     st.error('Incorrect Password or username')
@@ -501,30 +809,4 @@ try:
             with info:
                 st.warning('Username does not exist, Please Sign up')
 except:
-    st.success('Refresh Page')
-st.markdown('---')
-f1,f2,f3,f4=st.columns(4)
-with f1:
-    st.subheader(':red[Company]')
-    st.text('About Us')
-    st.text('Services')
-    st.text('Privacy Policy')
-    st.text('T&c')
-with f2:
-    st.subheader(':red[Get Help]')
-    st.text('FAQ')
-    st.text('Return')
-    st.text('Stocks')
-    st.text('Companies')
-with f3:
-    st.subheader(':red[Online Trading]')
-    st.text('Algorithmic Trading')
-    st.text('Upstox Trading')
-    st.text('Relaince')
-    st.text('TATA')
-with f4:
-    st.subheader(':red[Connect Us]')
-    st.text('Email')
-    st.text('FaceBook')
-    st.text('LinkedIn')
-    st.text('Twitter')
+    st.write('Either refresh or fill the details')
